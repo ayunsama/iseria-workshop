@@ -20,6 +20,21 @@
   var AGREEMENT_KEY = 'iseria_workshop_agreement_accepted';
   var CACHE_TTL = { worldbookSources: 90 * 60 * 1000 }; // 项目源文件缓存 90 分钟
 
+  // 运行环境：酒馆助手脚本 iframe（隐藏）。遮罩/iframe 必须挂到父页面（酒馆网页）才能全屏可见；
+  // 消息监听也要挂在父窗口（工坊 iframe 是父窗口的子节点，其 postMessage 发往父窗口）。
+  var DOC = (function () {
+    try {
+      if (window.parent && window.parent.document && window.parent !== window) return window.parent.document;
+    } catch (e) { /* 非 iframe 环境 */ }
+    return document;
+  })();
+  var MSG_TARGET = (function () {
+    try {
+      if (window.parent && window.parent !== window) return window.parent;
+    } catch (e) { /* 非 iframe 环境 */ }
+    return window;
+  })();
+
   function log() { console.info('[伊瑟利亚工坊]', Array.prototype.join.call(arguments, ' ')); }
   function warn() { console.warn('[伊瑟利亚工坊]', Array.prototype.join.call(arguments, ' ')); }
 
@@ -362,18 +377,18 @@
   }
 
   function buildOverlay(srcdoc) {
-    overlay = document.createElement('div');
+    overlay = DOC.createElement('div');
     overlay.id = 'iseria-workshop-overlay';
     overlay.style.cssText =
       'position:fixed;inset:0;z-index:2147483647;background:rgba(10,8,6,.72);' +
       'display:flex;align-items:center;justify-content:center;';
-    var frame = document.createElement('iframe');
+    var frame = DOC.createElement('iframe');
     frame.style.cssText =
       'width:min(1180px,96vw);height:min(820px,92vh);border:none;border-radius:14px;background:#f4f1ea;' +
       'box-shadow:0 12px 48px rgba(0,0,0,.5);';
     frame.srcdoc = srcdoc || defaultSrcdoc();
     overlay.appendChild(frame);
-    document.body.appendChild(overlay);
+    (DOC.body || document.body).appendChild(overlay);
     iframe = frame;
     origin = (function () {
       try { return new URL(workerUrl()).origin; } catch (e) { return workerUrl(); }
@@ -388,19 +403,30 @@
   function installBridgeListener() {
     if (!window.__iseriaBridgeInstalled) {
       window.__iseriaBridgeInstalled = true;
-      window.addEventListener('message', onBridgeMessage);
+      MSG_TARGET.addEventListener('message', onBridgeMessage);
     }
+  }
+
+  // 导航工坊 iframe：重建 iframe 并设置 src（避免跨窗口 location.replace 被浏览器静默忽略）
+  function navigateIframe(url) {
+    if (!iframe || !overlay) return;
+    try {
+      var fr = DOC.createElement('iframe');
+      fr.style.cssText = iframe.style.cssText;
+      fr.setAttribute('src', url);
+      fr.addEventListener('load', installBridgeListener);
+      overlay.replaceChild(fr, iframe);
+      iframe = fr;
+    } catch (e) { warn('导航工坊失败', e); }
   }
 
   function handleAgreement(ev) {
     var d = ev.data;
     if (!d || d.namespace !== NS || d.type !== 'agreement-accepted') return;
     if (ev.source !== (iframe && iframe.contentWindow)) return;
-    window.removeEventListener('message', handleAgreement);
+    MSG_TARGET.removeEventListener('message', handleAgreement);
     try { localStorage.setItem(AGREEMENT_KEY, 'true'); } catch (e) {}
-    if (iframe) {
-      try { iframe.contentWindow.location.replace(workerUrl() + '/'); } catch (e) {}
-    }
+    navigateIframe(workerUrl() + '/');
   }
 
   function openWorkshop() {
@@ -411,7 +437,7 @@
     if (!accepted) {
       // 首次：遮罩内嵌免责声明，同意后再进入工坊（不依赖 window.confirm）
       buildOverlay(disclaimerSrcdoc());
-      window.addEventListener('message', handleAgreement);
+      MSG_TARGET.addEventListener('message', handleAgreement);
       return;
     }
 
