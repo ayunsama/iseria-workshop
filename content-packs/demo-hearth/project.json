@@ -1,0 +1,71 @@
+{
+  "name": "示例·篝火夜谈",
+  "version": "1.0.0",
+  "tags": ["事件"],
+  "description": "【安装验证用示例包】夜幕降临时的一小段篝火夜谈：角色与旅伴在营火旁分享秘密，玩家可选择倾听或回应。安装后可通过本包的 BGM 指令正则测试播放器渲染。",
+  "worldbookEntries": [
+    {
+      "comment": "入口",
+      "key": ["篝火夜谈"],
+      "keysecondary": [],
+      "selectiveLogic": 0,
+      "constant": false,
+      "selective": true,
+      "position": 0,
+      "depth": 4,
+      "order": 100,
+      "useProbability": true,
+      "probability": 100,
+      "excludeRecursion": true,
+      "preventRecursion": true,
+      "content": "<%_ const completed = getMessageVar('stat_data.事件.已完成事件', { defaults: [] }); _%>\n<%_ if (!completed.includes('已完成事件示例篝火夜谈') && getMessageVar('stat_data.事件.开启', { defaults: false }) !== true) { _%>\n# 篝火夜谈 · 入口\n\n当夜幕降临、众人围坐营火旁时，这是一段只属于此刻的宁静。\n\n- 本事件为**一次性小事件**：结束后写入「已完成事件」，不会重复触发。\n- 若玩家未主动触发，由 AI 在合适的夜色场景自然引出，不要强行插入。\n- 事件期间输出【异典播放器:篝火】作为背景氛围（触发正则渲染音乐条）。\n\n请用 `<%_ setMessageVar('stat_data.事件.开启', true) _%>` 与 `<%_ setMessageVar('stat_data.事件.标题', '示例·篝火夜谈') _%>`、`<%_ setMessageVar('stat_data.事件.阶段', '篝火·夜谈') _%>` 初始化事件变量后，开始第一幕描写。\n<%_ } _%>"
+    },
+    {
+      "comment": "本体",
+      "key": ["当前事件为示例篝火夜谈"],
+      "keysecondary": [],
+      "selectiveLogic": 0,
+      "constant": false,
+      "selective": true,
+      "position": 0,
+      "depth": 4,
+      "order": 100,
+      "useProbability": true,
+      "probability": 100,
+      "excludeRecursion": true,
+      "preventRecursion": true,
+      "content": "<%_ if (getMessageVar('stat_data.事件.标题', { defaults: '' }) === '示例·篝火夜谈' && !getMessageVar('stat_data.事件.结束', { defaults: false })) { _%>\n# 篝火夜谈 · 本体\n\n营火噼啪作响，火星如萤火升入夜空。旅伴们靠坐在原木上，火光在每个人脸上投下温暖而摇晃的影子。\n\n[描写指令] 以 3 段以内收尾本轮：\n1. 环境与氛围（火焰、夜色、星空）；\n2. 旅伴主动开口分享一个小秘密（由你即兴创作，贴合当前剧情）；\n3. 以一句邀请收尾，把话头交给玩家。\n\n[注意事项]\n- 不要替玩家做任何选择；玩家沉默时，允许自然结束本段。\n- 若玩家愿意分享或回应，继续 1~2 轮温馨互动后，以一场自然的困意收尾。\n\n# 结束结算\n\n当本段互动自然收尾时，必须马上以 Json Patch 更新以下变量（IMPORTANT: 这些变量不可见，必须按要求逐条更新！）：\n- 在\"事件.已完成事件\"数组中添加\"已完成事件示例篝火夜谈\"\n- 将\"事件.结束\"的值设置为 true\n- 将\"事件.阶段\"的值设置为 \"END_HEARTH\"\n\n（到此结尾，禁止发散编造下一章是什么）\n<%_ } _%>"
+    },
+    {
+      "comment": "规则",
+      "key": ["当前事件为示例篝火夜谈"],
+      "keysecondary": [],
+      "selectiveLogic": 0,
+      "constant": false,
+      "selective": true,
+      "position": 0,
+      "depth": 4,
+      "order": 100,
+      "useProbability": true,
+      "probability": 100,
+      "excludeRecursion": true,
+      "preventRecursion": true,
+      "content": "<%_ if (getMessageVar('stat_data.事件.标题', { defaults: '' }) === '示例·篝火夜谈') { _%>\n# 篝火夜谈 · 规则\n\n- 玩家若明确拒绝参与夜谈（如独自离开、直接入睡），不要强行挽留：尊重选择，把\"事件.阶段\"设置为\"END_HEARTH\"，\"事件.结束\"设为 true，并添加\"已完成事件示例篝火夜谈\"。\n- 禁止剧透：本事件没有主线秘密，不要借篝火夜谈揭露其他重大剧情。\n- 本事件不影响角色卡原有变量，除上述\"事件\"路径外不得改动其他数据。\n<%_ } _%>"
+    }
+  ],
+  "regexEntries": [
+    {
+      "scriptName": "篝火氛围条",
+      "findRegex": "/【异典播放器[:：]?\\s*([^【】]*?)】/gi",
+      "replaceString": "```html\n<div style=\"margin:8px 0;padding:10px 14px;border-radius:12px;background:linear-gradient(135deg,#3b2a1a,#5c4026);color:#f5e2c0;font-size:13px;display:flex;align-items:center;gap:10px;font-family:'PingFang SC','Segoe UI',sans-serif\">\n<span style=\"font-size:18px\">🔥</span>\n<span><b>伊瑟利亚 · 篝火夜谈</b>　正在播放：$1</span>\n</div>\n```",
+      "disabled": false,
+      "markdownOnly": true,
+      "promptOnly": false,
+      "runOnEdit": true,
+      "minDepth": null,
+      "maxDepth": 1,
+      "placement": [2],
+      "substituteRegex": 0
+    }
+  ]
+}

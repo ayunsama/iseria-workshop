@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>伊瑟利亚创意工坊 · 工坊主后台</title>
+<style>
+  :root{
+    --bg:#f4f1ea; --card:#fff; --ink:#1a1b1c; --sub:#6b7280;
+    --accent:#8a6a3b; --accent-soft:#f0e4d0; --line:#e4e3dd;
+    --ok:#3f9e4d; --warn:#b9770e; --err:#c0392b;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font-family:'Roboto','PingFang SC','Segoe UI',Arial,sans-serif;font-size:14px;line-height:1.55}
+  header{background:linear-gradient(135deg,#2c2115,#4a3a22);color:#f5ead6;padding:16px 22px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
+  header h1{font-size:18px}
+  header a{color:#c9a24b;text-decoration:none;font-size:13px}
+  main{max-width:1000px;margin:0 auto;padding:20px 16px 60px}
+  nav{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}
+  nav button{background:#efece4;border:1px solid var(--line);border-radius:8px;padding:7px 16px;font-size:13.5px;cursor:pointer}
+  nav button.active{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:600}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+  .card h3{font-size:15.5px}
+  .meta{color:var(--sub);font-size:12.5px;margin-top:2px}
+  .desc{font-size:13px;color:#333;margin-top:6px}
+  .badge{display:inline-block;border-radius:20px;padding:2px 10px;font-size:12px;font-weight:600;margin:6px 6px 0 0}
+  .badge.pending{background:#fdeed0;color:var(--warn)}
+  .badge.approved{background:#dcefde;color:var(--ok)}
+  .badge.rejected{background:#f2dcd7;color:var(--err)}
+  .btns{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+  .btn{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:13.5px;cursor:pointer}
+  .btn:hover{filter:brightness(1.08)}
+  .btn.secondary{background:#e5e2da;color:#333}
+  .btn.danger{background:#f2dcd7;color:var(--err)}
+  .btn.ok{background:#dcefde;color:var(--ok)}
+  .login{max-width:420px;margin:60px auto;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:24px}
+  .login input{width:100%;border:1px solid var(--line);border-radius:8px;padding:11px 12px;font-size:14px;margin-top:10px}
+  .login button{margin-top:14px;width:100%}
+  .loading{text-align:center;color:var(--sub);padding:30px 0}
+  .empty{text-align:center;color:var(--sub);padding:40px 0}
+  pre{background:#f8f6f1;border:1px solid var(--line);border-radius:8px;padding:10px;font-size:12px;overflow:auto;max-height:260px;white-space:pre-wrap;word-break:break-all}
+  .detail{display:none;margin-top:10px}
+  .detail.open{display:block}
+  .entry{border-top:1px dashed var(--line);padding:8px 0}
+  .entry b{font-size:13px}
+  #toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:#2c2c2c;color:#fff;padding:10px 20px;border-radius:10px;font-size:13.5px;opacity:0;transition:opacity .25s;pointer-events:none;z-index:99;max-width:90vw}
+  #toast.show{opacity:.95}
+  #toast.err{background:#7a2a22}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🔑 伊瑟利亚创意工坊 · 工坊主后台</h1>
+  <a href="/" target="_blank" rel="noopener">← 返回工坊</a>
+</header>
+
+<main>
+  <div id="login-box" class="login">
+    <h3>输入管理密码</h3>
+    <p class="meta" style="margin-top:6px">密码由你在 Cloudflare Worker 的环境变量 ADMIN_PASSWORD 中设置</p>
+    <input type="password" id="admin-pass" placeholder="管理密码">
+    <button class="btn" id="login-btn">进入后台</button>
+  </div>
+
+  <div id="panel" style="display:none">
+    <nav>
+      <button data-filter="pending" class="active">待审核</button>
+      <button data-filter="rejected">已打回</button>
+      <button data-filter="approved">已上架</button>
+      <button data-filter="live">全部已上架项目</button>
+    </nav>
+    <div id="list"><div class="loading">加载中…</div></div>
+  </div>
+</main>
+
+<div id="toast"></div>
+
+<script>
+(function () {
+  'use strict';
+  var API = '';
+  var TOKEN_KEY = 'iseria_admin_token';
+  var $ = function (s) { return document.querySelector(s); };
+  var $$ = function (s) { return Array.prototype.slice.call(document.querySelectorAll(s)); };
+
+  function toast(msg, isErr) {
+    var t = $('#toast');
+    t.textContent = msg;
+    t.className = isErr ? 'show err' : 'show';
+    clearTimeout(t._timer);
+    t._timer = setTimeout(function () { t.className = ''; }, 2600);
+  }
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+  function token() { return localStorage.getItem(TOKEN_KEY) || ''; }
+
+  async function api(path, options) {
+    options = options || {};
+    options.headers = Object.assign({}, options.headers || {});
+    if (options.body && !options.headers['Content-Type']) {
+      options.headers['Content-Type'] = 'application/json';
+    }
+    if (token()) options.headers['Authorization'] = 'Bearer ' + token();
+    var r = await fetch(API + path, options);
+    var j;
+    try { j = await r.json(); } catch (e) { j = { ok: false, error: '响应解析失败' }; }
+    if (!r.ok && !j.ok) throw new Error(j.error || ('HTTP ' + r.status));
+    return j;
+  }
+
+  var currentFilter = 'pending';
+
+  function badge(status) {
+    var map = { pending: ['待审核', 'pending'], approved: ['已上架', 'approved'], rejected: ['已打回', 'rejected'] };
+    var m = map[status] || [status, 'pending'];
+    return '<span class="badge ' + m[1] + '">' + m[0] + '</span>';
+  }
+
+  function renderSubmissionCard(s) {
+    var card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML =
+      '<h3>' + esc(s.name) + ' ' + badge(s.status) + '</h3>' +
+      '<div class="meta">作者 ' + esc(s.authorName) + ' · v' + esc(s.version) + ' · ' +
+        esc((s.tags || []).join(' / ')) + ' · ' + s.worldbookCount + ' 条世界书 · ' + s.regexCount + ' 个正则' +
+        ' · 投稿 ' + (s.createdAt || '').replace('T', ' ').slice(0, 16) + '</div>' +
+      (s.description ? '<div class="desc">' + esc(s.description) + '</div>' : '') +
+      (s.rejectReason ? '<div class="desc" style="color:var(--err)">打回理由：' + esc(s.rejectReason) + '</div>' : '');
+
+    var btns = document.createElement('div');
+    btns.className = 'btns';
+
+    if (s.status === 'pending') {
+      var detailBtn = document.createElement('button');
+      detailBtn.className = 'btn secondary';
+      detailBtn.textContent = '查看内容';
+      var approveBtn = document.createElement('button');
+      approveBtn.className = 'btn ok';
+      approveBtn.textContent = '✅ 通过并上架';
+      var rejectBtn = document.createElement('button');
+      rejectBtn.className = 'btn danger';
+      rejectBtn.textContent = '打回';
+
+      detailBtn.onclick = function () { toggleDetail(card, s.id); };
+      approveBtn.onclick = function () { doApprove(s); };
+      rejectBtn.onclick = function () { doReject(s); };
+      btns.appendChild(detailBtn); btns.appendChild(approveBtn); btns.appendChild(rejectBtn);
+    }
+    card.appendChild(btns);
+
+    var detail = document.createElement('div');
+    detail.className = 'detail';
+    detail.id = 'detail-' + s.id;
+    card.appendChild(detail);
+    return card;
+  }
+
+  async function toggleDetail(card, id) {
+    var box = card.querySelector('.detail');
+    if (box.classList.contains('open')) { box.classList.remove('open'); return; }
+    box.innerHTML = '<div class="loading">加载详情…</div>';
+    box.classList.add('open');
+    try {
+      var j = await api('/api/admin/submissions/' + id);
+      var sub = j.submission;
+      var html = '<p class="meta">共 ' + sub.worldbookEntries.length + ' 条世界书 / ' + (sub.regexEntries || []).length + ' 个正则：</p>';
+      sub.worldbookEntries.forEach(function (e, i) {
+        html += '<div class="entry"><b>#' + (i + 1) + ' ' + esc(e.comment || '(无名)') + '</b>' +
+          '<span class="meta"> keys=' + esc((e.key || []).join(',')) + ' constant=' + (!!e.constant) + ' selective=' + (!!e.selective) + ' depth=' + esc(e.depth) + '</span>' +
+          '<pre>' + esc(String(e.content || '').slice(0, 600)) + (String(e.content || '').length > 600 ? '\n…(内容过长已截断)' : '') + '</pre></div>';
+      });
+      (sub.regexEntries || []).forEach(function (r, i) {
+        html += '<div class="entry"><b>正则 #' + (i + 1) + ' ' + esc(r.scriptName) + '</b>' +
+          '<pre>' + esc(String(r.findRegex || '')) + '</pre></div>';
+      });
+      box.innerHTML = html;
+    } catch (e) {
+      box.innerHTML = '<div class="empty" style="color:var(--err)">加载失败：' + esc(e.message) + '</div>';
+    }
+  }
+
+  async function doApprove(s) {
+    if (!window.confirm('确认通过并上架「' + s.name + '」？')) return;
+    try {
+      await api('/api/admin/submissions/' + s.id + '/approve', { method: 'POST', body: '{}' });
+      toast('✅ 已上架');
+      load(currentFilter);
+    } catch (e) { toast('操作失败：' + e.message, true); }
+  }
+
+  async function doReject(s) {
+    var reason = window.prompt('打回理由（会展示给作者）：', '请按内容包格式要求修改后重新投稿');
+    if (reason === null) return;
+    try {
+      await api('/api/admin/submissions/' + s.id + '/reject', { method: 'POST', body: JSON.stringify({ reason: reason }) });
+      toast('已打回');
+      load(currentFilter);
+    } catch (e) { toast('操作失败：' + e.message, true); }
+  }
+
+  function renderProjectRow(p) {
+    var card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML =
+      '<h3>' + esc(p.name) + '</h3>' +
+      '<div class="meta">v' + esc(p.version) + ' · ' + esc(p.authorName) + ' · ' +
+        esc((p.tags || []).join(' / ')) + ' · ' + p.worldbookCount + ' 条 · 下载 ' + p.downloadsCount + '</div>' +
+      (p.description ? '<div class="desc">' + esc(p.description) + '</div>' : '');
+    var btns = document.createElement('div');
+    btns.className = 'btns';
+    var del = document.createElement('button');
+    del.className = 'btn danger';
+    del.textContent = '下架';
+    del.onclick = function () {
+      if (!window.confirm('确定下架「' + p.name + '」？玩家将无法再安装/更新它。')) return;
+      api('/api/admin/projects/' + p.id, { method: 'DELETE' })
+        .then(function () { toast('已下架'); load('live'); })
+        .catch(function (e) { toast('下架失败：' + e.message, true); });
+    };
+    btns.appendChild(del);
+    card.appendChild(btns);
+    return card;
+  }
+
+  async function load(filter) {
+    currentFilter = filter;
+    $$('nav button').forEach(function (b) {
+      b.classList.toggle('active', b.dataset.filter === filter);
+    });
+    var box = $('#list');
+    box.innerHTML = '<div class="loading">加载中…</div>';
+    try {
+      if (filter === 'live') {
+        var j = await api('/api/projects');
+        box.innerHTML = '';
+        if (!j.projects.length) box.innerHTML = '<div class="empty">暂无已上架项目</div>';
+        j.projects.forEach(function (p) { box.appendChild(renderProjectRow(p)); });
+      } else {
+        var j2 = await api('/api/admin/submissions?status=' + filter);
+        box.innerHTML = '';
+        if (!j2.submissions.length) box.innerHTML = '<div class="empty">这里空空如也</div>';
+        j2.submissions.forEach(function (s) { box.appendChild(renderSubmissionCard(s)); });
+      }
+    } catch (e) {
+      box.innerHTML = '<div class="empty" style="color:var(--err)">加载失败：' + esc(e.message) + '</div>';
+    }
+  }
+
+  // ---- 登录 ----
+  async function tryLogin() {
+    var pass = $('#admin-pass').value.trim();
+    if (!pass) { toast('请输入管理密码', true); return; }
+    // 用一次真实请求验证密码
+    localStorage.setItem(TOKEN_KEY, pass);
+    try {
+      await api('/api/admin/submissions?status=pending');
+      $('#login-box').style.display = 'none';
+      $('#panel').style.display = 'block';
+      load('pending');
+      toast('✅ 已进入后台');
+    } catch (e) {
+      localStorage.removeItem(TOKEN_KEY);
+      toast('密码错误：' + e.message, true);
+    }
+  }
+
+  $('#login-btn').addEventListener('click', tryLogin);
+  $('#admin-pass').addEventListener('keydown', function (e) { if (e.key === 'Enter') tryLogin(); });
+  $$('nav button').forEach(function (b) {
+    b.addEventListener('click', function () { load(b.dataset.filter); });
+  });
+
+  // 已存密码则直接尝试进入
+  if (token()) tryLogin();
+})();
+</script>
+</body>
+</html>

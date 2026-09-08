@@ -1,0 +1,27 @@
+# 伊瑟利亚创意工坊 - Cloudflare Worker 配置
+# 部署方式二选一：
+#   A. 网页版：登录 Cloudflare 控制台 → Workers 和 Pages → 创建 Worker → 粘贴 src 下各文件
+#      （本项目采用 ES Modules 格式；KV 绑定请在控制台"设置→变量"中添加，绑定名必须为 WORKSHOP_KV）
+#   B. 命令行：安装 wrangler 后执行 `npx wrangler deploy`（需先创建 KV 命名空间并填 ID 到下方）
+#
+# 环境变量 / 密钥（在控制台"设置→变量与机密"中配置）：
+#   ADMIN_PASSWORD（机密）—— 管理后台密码，必填
+#   WORKSHOP_NAME（变量） —— 工坊名称，可选，默认"伊瑟利亚创意工坊"
+
+name = "iseria-workshop"
+main = "src/index.js"
+compatibility_date = "2024-11-01"
+
+# 静态页面（工坊前端 + 管理后台）放在 public/ 目录，由 Workers Assets 自动托管
+[assets]
+directory = "./public"
+
+# KV 命名空间：先执行 `npx wrangler kv namespace create WORKSHOP_KV`，
+# 然后把输出的 id 填到下面两处
+[[kv_namespaces]]
+binding = "WORKSHOP_KV"
+id = "在此填写你的KV命名空间ID"
+
+# 普通变量（在控制台配置后此处可留空）
+[vars]
+WORKSHOP_NAME = "伊瑟利亚创意工坊"
