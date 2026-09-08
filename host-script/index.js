@@ -420,7 +420,7 @@
   // ---- 注册按钮 ----
   function register() {
     try {
-      replaceScriptButtons([{ name: '伊瑟利亚创意工坊', visible: true }]);
+      appendInexistentScriptButtons([{ name: '伊瑟利亚创意工坊', visible: true }]);
       eventOn(getButtonEvent('伊瑟利亚创意工坊'), function () {
         openWorkshop();
       });
