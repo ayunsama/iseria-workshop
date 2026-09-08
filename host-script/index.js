@@ -329,7 +329,39 @@
   var iframe = null;
   var origin = '';
 
-  function buildOverlay() {
+  function defaultSrcdoc() {
+    return (
+      '<!doctype html><html><head><meta charset="utf-8"><style>' +
+      'html,body{margin:0;height:100%;display:flex;align-items:center;justify-content:center;' +
+      'background:#f4f1ea;font-family:sans-serif;color:#6b7280;font-size:14px}' +
+      '</style></head><body><div>正在连接「伊瑟利亚创意工坊」…</div>' +
+      '<script>window.addEventListener("load",function(){location.replace(' + JSON.stringify(workerUrl() + '/') + ');});<\/script>' +
+      '</body></html>'
+    );
+  }
+
+  function disclaimerSrcdoc() {
+    return (
+      '<!doctype html><html><head><meta charset="utf-8"><style>' +
+      'html,body{margin:0;height:100%;display:flex;align-items:center;justify-content:center;' +
+      'background:#f4f1ea;font-family:\'PingFang SC\',\'Segoe UI\',sans-serif}' +
+      '.card{max-width:520px;padding:36px 32px;border-radius:16px;background:#fff;' +
+      'box-shadow:0 8px 32px rgba(0,0,0,.08);text-align:center}' +
+      'h1{font-size:20px;margin:0 0 12px;color:#1a1b1c}' +
+      'p{font-size:14px;line-height:1.9;color:#4b5563;text-align:left;margin:0 0 22px}' +
+      '.btn{display:inline-block;padding:11px 34px;border:none;border-radius:999px;' +
+      'background:#8a5a44;color:#fff;font-size:15px;cursor:pointer}' +
+      '.btn:hover{background:#744936}' +
+      '</style></head><body><div class="card"><h1>伊瑟利亚创意工坊</h1>' +
+      '<p>内容包均由玩家创作并经工坊主审核后上架。安装第三方内容包可能存在与角色卡冲突的风险，请自行判断是否安装。</p>' +
+      '<button class="btn" id="go">我已了解，进入工坊</button></div>' +
+      '<script>document.getElementById(\'go\').onclick=function(){' +
+      'parent.postMessage({namespace:\'' + NS + '\',type:\'agreement-accepted\'},\'*\')};<\/script>' +
+      '</body></html>'
+    );
+  }
+
+  function buildOverlay(srcdoc) {
     overlay = document.createElement('div');
     overlay.id = 'iseria-workshop-overlay';
     overlay.style.cssText =
@@ -339,14 +371,7 @@
     frame.style.cssText =
       'width:min(1180px,96vw);height:min(820px,92vh);border:none;border-radius:14px;background:#f4f1ea;' +
       'box-shadow:0 12px 48px rgba(0,0,0,.5);';
-    // 引导页：加载后跳到真正的工坊前端
-    frame.srcdoc =
-      '<!doctype html><html><head><meta charset="utf-8"><style>' +
-      'html,body{margin:0;height:100%;display:flex;align-items:center;justify-content:center;' +
-      'background:#f4f1ea;font-family:sans-serif;color:#6b7280;font-size:14px}' +
-      '</style></head><body><div>正在连接「伊瑟利亚创意工坊」…</div>' +
-      '<script>window.addEventListener("load",function(){location.replace(' + JSON.stringify(workerUrl() + '/') + ');});<\/script>' +
-      '</body></html>';
+    frame.srcdoc = srcdoc || defaultSrcdoc();
     overlay.appendChild(frame);
     document.body.appendChild(overlay);
     iframe = frame;
@@ -360,28 +385,38 @@
     overlay = null; iframe = null;
   }
 
-  function openWorkshop() {
-    // 免责声明（首次）
-    try {
-      if (localStorage.getItem(AGREEMENT_KEY) !== 'true') {
-        var ok = window.confirm(
-          '伊瑟利亚创意工坊\n\n内容包均由玩家创作并经工坊主审核后上架。' +
-          '安装第三方内容包可能存在与角色卡冲突的风险，请自行判断是否安装。\n\n点击"确定"表示你已知悉并同意。'
-        );
-        if (!ok) return;
-        localStorage.setItem(AGREEMENT_KEY, 'true');
-      }
-    } catch (e) { /* localStorage 不可用时跳过声明 */ }
+  function installBridgeListener() {
+    if (!window.__iseriaBridgeInstalled) {
+      window.__iseriaBridgeInstalled = true;
+      window.addEventListener('message', onBridgeMessage);
+    }
+  }
 
+  function handleAgreement(ev) {
+    var d = ev.data;
+    if (!d || d.namespace !== NS || d.type !== 'agreement-accepted') return;
+    if (ev.source !== (iframe && iframe.contentWindow)) return;
+    window.removeEventListener('message', handleAgreement);
+    try { localStorage.setItem(AGREEMENT_KEY, 'true'); } catch (e) {}
+    if (iframe) {
+      try { iframe.contentWindow.location.replace(workerUrl() + '/'); } catch (e) {}
+    }
+  }
+
+  function openWorkshop() {
     if (overlay) { closeOverlay(); return; }
+    var accepted = false;
+    try { accepted = localStorage.getItem(AGREEMENT_KEY) === 'true'; } catch (e) {}
+
+    if (!accepted) {
+      // 首次：遮罩内嵌免责声明，同意后再进入工坊（不依赖 window.confirm）
+      buildOverlay(disclaimerSrcdoc());
+      window.addEventListener('message', handleAgreement);
+      return;
+    }
+
     buildOverlay();
-    iframe.addEventListener('load', function () {
-      // 桥接消息监听（全局只挂一次）
-      if (!window.__iseriaBridgeInstalled) {
-        window.__iseriaBridgeInstalled = true;
-        window.addEventListener('message', onBridgeMessage);
-      }
-    });
+    iframe.addEventListener('load', installBridgeListener);
   }
 
   function onBridgeMessage(ev) {
