@@ -13,6 +13,7 @@ function toSummary(p) {
     tags: p.tags,
     authorName: p.authorName,
     coverImage: p.coverImage,
+    authorAvatar: p.authorAvatar || '',
     downloadsCount: p.downloadsCount || 0,
     likesCount: p.likesCount || 0,
     approvedAt: p.approvedAt,

@@ -64,6 +64,7 @@ export async function handleSubmissions(env, url, request) {
       description: body.description.trim(),
       authorName: body.authorName.trim(),
       coverImage: body.coverImage || '',
+      authorAvatar: body.authorAvatar || '',
       version: pack.version,
       tags: pack.tags,
       status: 'pending', // pending / approved / rejected

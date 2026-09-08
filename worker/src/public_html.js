@@ -59,6 +59,27 @@ export const INDEX_HTML = `<!doctype html>
   footer a{color:var(--accent);text-decoration:none}
   .empty{padding:40px 0;text-align:center;color:var(--sub)}
   .loading{text-align:center;color:var(--sub);padding:30px 0}
+  /* ===== 美化增强 ===== */
+  header::after{content:'';position:absolute;left:0;right:0;bottom:0;height:3px;background:linear-gradient(90deg,#c9a24b,#e8dcc4,#c9a24b)}
+  .card{transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease}
+  .card:hover{transform:translateY(-3px);box-shadow:0 10px 26px rgba(60,40,10,.12);border-color:#d8c9a8}
+  .cover{position:relative;overflow:hidden}
+  .cover img,.cover{background-size:cover;background-position:center}
+  .cover-事件{background:linear-gradient(135deg,#dbe7f4,#a9c4e0);color:#3b5f8a}
+  .cover-角色包{background:linear-gradient(135deg,#eadcf4,#c5a4de);color:#6d3f96}
+  .cover-材料本{background:linear-gradient(135deg,#ddf0de,#a8d4ab);color:#3d7a42}
+  .cover-扩展{background:linear-gradient(135deg,#f4e6d2,#d9b98a);color:#8a5a2a}
+  .tag{transition:filter .15s}
+  .tag:hover{filter:brightness(1.06)}
+  .avatar{width:22px;height:22px;border-radius:50%;object-fit:cover;vertical-align:-5px;margin-right:6px;border:1px solid var(--line);display:inline-block}
+  .btn{transition:filter .15s,transform .1s}
+  .btn:active{transform:scale(.96)}
+  .form{border:1px solid #e6dcc6;box-shadow:0 4px 18px rgba(60,40,10,.06)}
+  .form input:focus,.form textarea:focus,.form select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(138,106,59,.12)}
+  #close-workshop{transition:background .15s}
+  nav button{transition:background .15s,color .15s}
+  .empty{padding:56px 0;font-size:14.5px}
+  .empty::before{content:'🧙';display:block;font-size:44px;margin-bottom:12px;opacity:.8}
 </style>
 </head>
 <body>
@@ -92,6 +113,10 @@ export const INDEX_HTML = `<!doctype html>
       <div>
         <label>一句话简介</label>
         <input id="f-desc" placeholder="这个内容包讲什么、包含什么玩法" maxlength="200">
+      </div>
+      <div class="row2">
+        <div><label>封面图 URL（可选）</label><input id="f-cover" placeholder="https://… 内容包封面图，留空则用默认封面" maxlength="500"></div>
+        <div><label>作者头像 URL（可选）</label><input id="f-avatar" placeholder="https://… 圆形小头像，留空则显示首字" maxlength="500"></div>
       </div>
       <div>
         <label>分类标签 *</label>
@@ -216,7 +241,13 @@ export const INDEX_HTML = `<!doctype html>
 
       var cover = document.createElement('div');
       cover.className = 'cover';
-      cover.textContent = p.tags[0] === '事件' ? '📜' : p.tags[0] === '角色包' ? '👤' : p.tags[0] === '材料本' ? '📦' : '🧩';
+      var cat = (p.tags && p.tags[0]) || '扩展';
+      if (p.coverImage) {
+        cover.style.backgroundImage = "url('" + String(p.coverImage).replace(/'/g, "%27") + "')";
+      } else {
+        cover.className = 'cover cover-' + cat;
+        cover.textContent = cat === '事件' ? '📜' : cat === '角色包' ? '👤' : cat === '材料本' ? '📦' : '🧩';
+      }
 
       var h3 = document.createElement('h3');
       h3.textContent = p.name;
@@ -229,7 +260,17 @@ export const INDEX_HTML = `<!doctype html>
 
       var meta = document.createElement('div');
       meta.className = 'meta';
-      meta.textContent = 'v' + p.version + ' · 作者 ' + p.authorName + ' · ' + p.worldbookCount + ' 条 · 下载 ' + p.downloadsCount;
+      if (p.authorAvatar) {
+        var av = document.createElement('img');
+        av.className = 'avatar';
+        av.src = p.authorAvatar;
+        av.alt = '头像';
+        av.onerror = function () { this.style.display = 'none'; };
+        meta.appendChild(av);
+      }
+      var metaSpan = document.createElement('span');
+      metaSpan.textContent = 'v' + p.version + ' · 作者 ' + p.authorName + ' · ' + p.worldbookCount + ' 条 · 下载 ' + p.downloadsCount;
+      meta.appendChild(metaSpan);
 
       var desc = document.createElement('div');
       desc.className = 'desc';
@@ -318,7 +359,7 @@ export const INDEX_HTML = `<!doctype html>
     try {
       await bridgeRequest('install-project', {
         projectId: p.id,
-        downloadUrl: API + '/api/files/projects/' + p.id + '/project-' + p.id + '.json',
+        downloadUrl: location.origin + '/api/files/projects/' + p.id + '/project-' + p.id + '.json',
         name: p.name, version: p.version, tags: p.tags
       }, 30000);
       toast('✅ 安装成功！');
@@ -342,7 +383,7 @@ export const INDEX_HTML = `<!doctype html>
     try {
       await bridgeRequest('confirm-project-update', {
         projectId: p.id,
-        downloadUrl: API + '/api/files/projects/' + p.id + '/project-' + p.id + '.json',
+        downloadUrl: location.origin + '/api/files/projects/' + p.id + '/project-' + p.id + '.json',
         name: p.name, version: p.version, tags: p.tags
       }, 30000);
       toast('✅ 更新成功！');
@@ -363,6 +404,8 @@ export const INDEX_HTML = `<!doctype html>
       name: $('#f-name').value.trim(),
       authorName: $('#f-author').value.trim(),
       description: $('#f-desc').value.trim(),
+      coverImage: $('#f-cover').value.trim(),
+      authorAvatar: $('#f-avatar').value.trim(),
       tags: tags,
       content: $('#f-content').value.trim()
     };

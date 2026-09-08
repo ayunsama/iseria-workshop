@@ -1,4 +1,4 @@
-// 伊瑟利亚创意工坊 - Worker 公共工具
+﻿// 伊瑟利亚创意工坊 - Worker 公共工具
 // 文件：utils.js —— JSON 响应、CORS、鉴权、KV 封装、内容包校验
 
 export function json(data, status = 200, extraHeaders = {}) {
@@ -159,6 +159,7 @@ export function buildProjectFromSubmission(sub) {
     tags: sub.tags,
     authorName: (sub.authorName || '匿名').trim(),
     coverImage: sub.coverImage || '',
+    authorAvatar: sub.authorAvatar || '',
     status: 'approved',
     downloadsCount: 0,
     likesCount: 0,
