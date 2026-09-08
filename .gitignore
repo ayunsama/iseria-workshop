@@ -1,0 +1,9 @@
+# 敏感文件——绝不允许提交
+cf_token.txt
+iseria_admin_password.txt
+*.token
+*.secret
+
+# wrangler 本地缓存/变量
+worker/.wrangler/
+worker/.dev.vars

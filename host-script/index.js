@@ -14,7 +14,7 @@
   'use strict';
 
   var NS = 'iseria-workshop-bridge';
-  var WORKER_URL = 'https://你的工坊域名.workers.dev'; // ← 部署后改成你的地址！
+  var WORKER_URL = 'https://iseria-workshop.1020803065.workers.dev'; // ← 已部署地址（2026-09-08）
   var REGEX_ID_PREFIX = 'iseria_workshop:';
   var CACHE_KEY = 'iseria_workshop_cache';
   var AGREEMENT_KEY = 'iseria_workshop_agreement_accepted';

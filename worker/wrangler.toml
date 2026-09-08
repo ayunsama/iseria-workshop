@@ -16,11 +16,10 @@ compatibility_date = "2024-11-01"
 [assets]
 directory = "./public"
 
-# KV 命名空间：先执行 `npx wrangler kv namespace create WORKSHOP_KV`，
-# 然后把输出的 id 填到下面两处
+# KV 命名空间（已创建：wrangler kv namespace create WORKSHOP_KV）
 [[kv_namespaces]]
 binding = "WORKSHOP_KV"
-id = "在此填写你的KV命名空间ID"
+id = "40081b83f58a4c3dbfe1f3529a45c145"
 
 # 普通变量（在控制台配置后此处可留空）
 [vars]

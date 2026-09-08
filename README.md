@@ -18,7 +18,20 @@
 
 **全程免费**（Cloudflare Workers 免费额度 + GitHub 免费仓库），不需要租服务器、不需要买域名。
 
+---
 
+## ✅ 部署状态（2026-09-08 已上线）
+
+| 项目 | 地址 |
+|---|---|
+| 🏰 工坊玩家端（浏览 / 安装 / 投稿） | https://iseria-workshop.1020803065.workers.dev |
+| 🔐 工坊主审核后台 | https://iseria-workshop.1020803065.workers.dev/admin |
+| 📦 GitHub 仓库 | https://github.com/ayunsama/iseria-workshop |
+
+- 管理后台密码：见本地文件 `C:\Users\Administrator\Desktop\iseria_admin_password.txt`（勿上传 GitHub；可在 Cloudflare 控制台 → Workers → iseria-workshop → Settings → Variables 中修改 `ADMIN_PASSWORD`）。
+- 宿主脚本已内置工坊地址，无需再改：`host-script/index.js` 的 `WORKER_URL`。
+- 云端全链路已验证：健康检查 / 页面 / 投稿 → 审核 → 上架 → 文件分发 / 下载计数，全部通过。
+- 子域名为账号自动分配的 `1020803065.workers.dev`；如需更好记的子域名，可在 Cloudflare 控制台修改（Workers 设置 → Workers 子域名）。
 
 ***
 
