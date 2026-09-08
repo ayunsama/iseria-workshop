@@ -70,7 +70,11 @@ iseria-workshop/
 
 ├── content-packs/demo-hearth/project.json   示例内容包（验证用）
 
-└── docs/content-pack-format.md  内容包投稿格式说明
+└── docs/
+
+│   ├── player-guide.md      玩家创作指南（零基础版：人想点子、AI 代写）
+
+│   └── content-pack-format.md  内容包投稿格式说明
 ```
 
 
