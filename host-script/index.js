@@ -88,67 +88,84 @@
   // ---- 安装器：字段映射（项目文件条目 → 酒馆世界书条目） ----
   function mapEntry(src, project, idx) {
     var tags = project.tags || [];
-    var e = {
-      uid: src.uid || ('iws_' + project.id + '_' + idx),
-      comment: entryName(src.comment || ('条目' + (idx + 1)), project.name, tags),
-      key: Array.isArray(src.key) ? src.key : (src.key ? [src.key] : []),
-      keysecondary: Array.isArray(src.keysecondary) ? src.keysecondary : [],
-      selectiveLogic: typeof src.selectiveLogic === 'number' ? src.selectiveLogic : 0,
-      constant: !!src.constant,
-      selective: src.selective !== undefined ? !!src.selective : !src.constant,
-      vectorized: !!src.vectorized,
-      content: typeof src.content === 'string' ? src.content : '',
-      position: typeof src.position === 'number' ? src.position : 0,
-      depth: typeof src.depth === 'number' ? src.depth : 4,
-      order: typeof src.order === 'number' ? src.order : 100,
-      role: typeof src.role === 'number' ? src.role : 0,
-      useProbability: !!src.useProbability,
+    var selective = !!src.selective || !!(src.strategy && src.strategy.type === 'selective');
+    var keys = Array.isArray(src.key) ? src.key : (src.key ? [src.key] : []);
+    var posType = 'after_character_definition';
+    var depth = 0;
+    var rawPos = src.position;
+    if (rawPos === 'before_char') posType = 'before_character_definition';
+    else if (rawPos === 'in_chat' || rawPos === 'at_depth' || rawPos === 'before_example_messages' ||
+             rawPos === 'after_example_messages' || rawPos === 'before_author_note' ||
+             rawPos === 'after_author_note' || rawPos === 'outlet') posType = rawPos;
+    else if (typeof rawPos === 'number') { posType = 'at_depth'; depth = rawPos; }
+    if (src.depth !== undefined && src.depth !== null) { posType = 'at_depth'; depth = src.depth; }
+    return {
+      uid: 0, // 安装时统一分配，避免与其他条目编号冲突
+      name: entryName(src.comment || src.name || ('条目' + (idx + 1)), project.name, tags),
+      enabled: src.enabled !== false,
+      strategy: {
+        type: selective ? 'selective' : 'constant',
+        keys: keys,
+        keys_secondary: {
+          logic: 'and_any',
+          keys: Array.isArray(src.keysecondary) ? src.keysecondary : (src.keysecondary ? [src.keysecondary] : []),
+        },
+        scan_depth: 'same_as_global',
+      },
+      position: { type: posType, role: 'system', depth: depth, order: 100 },
+      content: src.content || '',
       probability: typeof src.probability === 'number' ? src.probability : 100,
-      excludeRecursion: !!src.excludeRecursion,
-      preventRecursion: !!src.preventRecursion,
-      sticky: !!src.sticky,
-      cooldown: !!src.cooldown,
-      delay: typeof src.delay === 'number' ? src.delay : undefined,
-      scanDepth: src.scanDepth !== undefined ? src.scanDepth : 'same_as_global',
-      group: src.group || '',
-      groupOverride: !!src.groupOverride,
-      groupWeight: typeof src.groupWeight === 'number' ? src.groupWeight : 100,
-      automationId: src.automationId || '',
-      disabled: !!src.disabled,
-      addMemo: typeof src.addMemo === 'boolean' ? src.addMemo : false,
+      recursion: {
+        prevent_incoming: !!src.preventRecursion || !!src.prevent_recursion,
+        prevent_outgoing: !!src.excludeRecursion || !!src.prevent_activation,
+        delay_until: src.recursion_delay != null ? src.recursion_delay : null,
+      },
+      effect: {
+        sticky: src.sticky != null ? src.sticky : null,
+        cooldown: src.cooldown != null ? src.cooldown : null,
+        delay: src.delay != null ? src.delay : null,
+      },
       // 打标：卸载/更新/列表识别的把手
-      extra: {
+      extra: Object.assign({}, src.extra || {}, {
         iseria_cw_project_id: project.id,
         iseria_cw_project_name_display: project.name,
         iseria_cw_project_version: project.version,
         iseria_cw_remote_version: project.version,
         iseria_cw_entry_key: project.id + ':' + idx,
-      },
+      }),
     };
-    return e;
   }
 
   // ---- 安装器：正则映射 ----
   function mapRegex(src, project) {
+    var placement = src.placement;
+    var source = { user_input: false, ai_output: true, slash_command: false, world_info: false, reasoning: false };
+    if (typeof placement === 'string') {
+      source.user_input = placement.indexOf('1') >= 0;
+      source.ai_output = placement.indexOf('2') >= 0;
+    } else if (Array.isArray(placement)) {
+      source.user_input = placement.indexOf(1) >= 0 || placement.indexOf('1') >= 0;
+      source.ai_output = placement.indexOf(2) >= 0 || placement.indexOf('2') >= 0;
+    }
+    var destination = { display: true, prompt: false };
+    if (src.promptOnly) destination = { display: false, prompt: true };
     return {
       id: REGEX_ID_PREFIX + project.id + ':' + (src.id || String(Math.random()).slice(2, 10)),
-      scriptName: '[伊瑟利亚工坊] ' + project.name + ' - ' + src.scriptName,
-      findRegex: src.findRegex || '',
-      replaceString: src.replaceString || '',
-      trimStrings: Array.isArray(src.trimStrings) ? src.trimStrings : [],
-      placement: Array.isArray(src.placement) ? src.placement : [2],
-      disabled: !!src.disabled,
-      markdownOnly: src.markdownOnly !== undefined ? !!src.markdownOnly : true,
-      promptOnly: !!src.promptOnly,
-      runOnEdit: !!src.runOnEdit,
-      substituteRegex: typeof src.substituteRegex === 'number' ? src.substituteRegex : 0,
-      minDepth: src.minDepth !== undefined ? src.minDepth : null,
-      maxDepth: src.maxDepth !== undefined ? src.maxDepth : null,
+      script_name: '[伊瑟利亚工坊] ' + project.name + ' - ' + (src.scriptName || src.name || '脚本'),
+      enabled: !src.disabled,
+      find_regex: src.findRegex || '',
+      replace_string: src.replaceString || '',
+      trim_strings: Array.isArray(src.trimStrings) ? src.trimStrings : [],
+      source: source,
+      destination: destination,
+      run_on_edit: !!src.runOnEdit,
+      min_depth: src.minDepth !== undefined ? src.minDepth : null,
+      max_depth: src.maxDepth !== undefined ? src.maxDepth : null,
     };
   }
 
   // ---- 下载项目源（带 90 分钟缓存） ----
-  async function fetchProjectSource(url) {
+  async function fetchProjectSource(url, projectId) {
     var cached = cacheGet('worldbookSources', url);
     if (cached) return cached;
     var res = await fetch(url);
@@ -159,6 +176,7 @@
     if (Array.isArray(data)) entries = data;
     else if (data.entries && Array.isArray(data.entries)) entries = data.entries;
     var pack = {
+      id: projectId || data.id || String(Math.random()).slice(2, 10),
       name: data.name || url,
       version: data.version || '0.0.0',
       tags: Array.isArray(data.tags) ? data.tags : [],
@@ -170,24 +188,39 @@
     return pack;
   }
 
-  // ---- 世界书读写 ----
+  // ---- 世界书读写（酒馆助手新接口：按世界书名称读写条目数组） ----
+  // 解析目标世界书名称：优先当前角色卡绑定的主世界书，其次当前聊天世界书，最后新建聊天世界书
+  function resolveWorldbookName() {
+    try {
+      var c = getCharWorldbookNames('current');
+      if (c && c.primary) return c.primary;
+    } catch (e) { /* 接口不可用则继续回退 */ }
+    try {
+      var n = getChatWorldbookName('current');
+      if (n) return n;
+    } catch (e) { /* 接口不可用则继续回退 */ }
+    return null;
+  }
   async function loadWorldbook() {
-    // getWorldbook() 返回酒馆世界书对象（含 character 子世界书）
-    return await getWorldbook();
+    var name = resolveWorldbookName();
+    if (!name) name = await getOrCreateChatWorldbook('current', '伊瑟利亚工坊');
+    var entries = await getWorldbook(name);
+    return { name: name, entries: Array.isArray(entries) ? entries : [] };
   }
   async function saveWorldbook(wb) {
-    await setWorldbook(wb);
-  }
-  function charEntries(wb) {
-    return (wb && wb.character && wb.character.entries) ? wb.character.entries : [];
+    await replaceWorldbook(wb.name, wb.entries);
   }
 
-  // ---- 正则读写 ----
+  // ---- 正则读写（酒馆助手新接口：getTavernRegexes / replaceTavernRegexes） ----
   async function loadRegex() {
-    return (await getTavernRegex()) || [];
+    try { return getTavernRegexes({ type: 'character', name: 'current' }) || []; } catch (e) { /* 回退全局 */ }
+    try { return getTavernRegexes({ type: 'global' }) || []; } catch (e) { /* 回退空 */ }
+    return [];
   }
   async function saveRegex(arr) {
-    await setTavernRegex(arr);
+    try { await replaceTavernRegexes(arr, { type: 'character', name: 'current' }); return; } catch (e) { /* 回退全局 */ }
+    try { await replaceTavernRegexes(arr, { type: 'global' }); return; } catch (e) { /* 抛出 */ }
+    throw new Error('写入正则失败');
   }
 
   // ---- 安装 ----
@@ -195,14 +228,16 @@
     var projectId = data.projectId;
     var url = data.downloadUrl;
     if (!projectId || !url) throw new Error('缺少项目信息');
-    var pack = await fetchProjectSource(url);
+    var pack = await fetchProjectSource(url, projectId);
 
     // 1. 写入世界书（按 iseria_cw_entry_key upsert）
     var wb = await loadWorldbook();
-    var entries = charEntries(wb);
+    var entries = wb.entries;
     var oldMap = {};
     var installedCount = 0;
+    var maxUid = 0;
     entries.forEach(function (en) {
+      if (en && typeof en.uid === 'number' && en.uid > maxUid) maxUid = en.uid;
       if (en && en.extra && en.extra.iseria_cw_project_id === projectId) {
         oldMap[en.extra.iseria_cw_entry_key] = en;
       }
@@ -210,14 +245,16 @@
 
     pack.worldbookEntries.forEach(function (src, idx) {
       var key = projectId + ':' + idx;
+      var neu = mapEntry(src, pack, idx);
       if (oldMap[key]) {
-        // 已存在：原位替换（保留 uid）
+        // 已存在：原位替换（保留原 uid，避免世界书内部编号冲突）
         var old = oldMap[key];
-        var neu = mapEntry(src, pack, idx);
         neu.uid = old.uid;
         Object.assign(old, neu);
       } else {
-        entries.push(mapEntry(src, pack, idx));
+        maxUid++;
+        neu.uid = maxUid;
+        entries.push(neu);
       }
       installedCount++;
     });
@@ -243,14 +280,14 @@
     if (!projectId) throw new Error('缺少项目 ID');
 
     var wb = await loadWorldbook();
-    var entries = charEntries(wb);
+    var entries = wb.entries;
     var before = entries.length;
     var kept = entries.filter(function (en) {
       return !(en && en.extra && en.extra.iseria_cw_project_id === projectId);
     });
     var removed = before - kept.length;
     if (removed > 0) {
-      wb.character.entries = kept;
+      wb.entries = kept;
       await saveWorldbook(wb);
     }
 
@@ -272,7 +309,7 @@
   async function listInstalled() {
     var wb = await loadWorldbook();
     var map = {};
-    charEntries(wb).forEach(function (en) {
+    wb.entries.forEach(function (en) {
       if (!en || !en.extra || !en.extra.iseria_cw_project_id) return;
       var pid = en.extra.iseria_cw_project_id;
       if (!map[pid]) {
