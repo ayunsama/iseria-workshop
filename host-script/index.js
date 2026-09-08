@@ -388,6 +388,17 @@
       'box-shadow:0 12px 48px rgba(0,0,0,.5);';
     frame.srcdoc = srcdoc || defaultSrcdoc();
     overlay.appendChild(frame);
+    // 关闭按钮：固定在遮罩右上角，任何情况下（含工坊页面加载失败）都能关掉窗口
+    var closeBtn = DOC.createElement('div');
+    closeBtn.id = 'iseria-workshop-close';
+    closeBtn.textContent = '✕';
+    closeBtn.title = '关闭工坊';
+    closeBtn.style.cssText =
+      'position:fixed;top:14px;right:14px;z-index:2147483648;width:42px;height:42px;' +
+      'border-radius:50%;background:rgba(25,18,14,.72);color:#fff;font-size:18px;line-height:42px;' +
+      'text-align:center;cursor:pointer;font-family:sans-serif;user-select:none;box-shadow:0 2px 10px rgba(0,0,0,.4);';
+    closeBtn.onclick = function () { closeOverlay(); };
+    overlay.appendChild(closeBtn);
     (DOC.body || document.body).appendChild(overlay);
     iframe = frame;
     origin = (function () {
@@ -455,6 +466,9 @@
     var type = d.type;
     var requestId = d.requestId;
     var data = d.data || {};
+
+    // 工坊前端请求关闭窗口
+    if (type === 'close') { closeOverlay(); return; }
 
     function respond(result) {
       try {

@@ -15,9 +15,11 @@ export const INDEX_HTML = `<!doctype html>
   }
   *{box-sizing:border-box;margin:0;padding:0}
   body{background:var(--bg);color:var(--ink);font-family:'Roboto','PingFang SC','Segoe UI',Arial,sans-serif;font-size:14px;line-height:1.55}
-  header{background:linear-gradient(135deg,#2c2115,#4a3a22);color:#f5ead6;padding:18px 22px}
+  header{background:linear-gradient(135deg,#2c2115,#4a3a22);color:#f5ead6;padding:18px 22px;position:relative}
   header h1{font-size:20px;font-weight:700;letter-spacing:1px}
   header p{font-size:12.5px;opacity:.85;margin-top:2px}
+  #close-workshop{position:absolute;top:12px;right:14px;background:rgba(255,255,255,.14);color:#f5ead6;border:1px solid rgba(255,255,255,.28);border-radius:8px;padding:6px 12px;font-size:12.5px;cursor:pointer}
+  #close-workshop:hover{background:rgba(255,255,255,.26)}
   nav{display:flex;gap:6px;margin-top:12px;flex-wrap:wrap}
   nav button{background:rgba(255,255,255,.12);color:#f5ead6;border:1px solid rgba(255,255,255,.25);border-radius:8px;padding:7px 16px;font-size:13.5px;cursor:pointer}
   nav button.active{background:#c9a24b;color:#241a0d;border-color:#c9a24b;font-weight:600}
@@ -64,6 +66,7 @@ export const INDEX_HTML = `<!doctype html>
 <header>
   <h1>🏰 伊瑟利亚创意工坊</h1>
   <p>为伊瑟利亚大陆加载由玩家创作的内容包：事件、角色、材料本与扩展</p>
+  <button id="close-workshop" title="关闭工坊并返回酒馆">✕ 关闭工坊</button>
   <nav>
     <button data-view="browse" class="active">浏览内容</button>
     <button data-view="submit">投稿创作</button>
@@ -134,6 +137,14 @@ export const INDEX_HTML = `<!doctype html>
 
   var $ = function (sel) { return document.querySelector(sel); };
   var $$ = function (sel) { return Array.prototype.slice.call(document.querySelectorAll(sel)); };
+
+  // ---- 关闭工坊（通知宿主脚本收起窗口） ----
+  var closeBtn = $('#close-workshop');
+  if (closeBtn) {
+    closeBtn.onclick = function () {
+      try { window.parent.postMessage({ namespace: NAMESPACE, type: 'close' }, '*'); } catch (e) {}
+    };
+  }
 
   function toast(msg, isErr) {
     var t = $('#toast');
